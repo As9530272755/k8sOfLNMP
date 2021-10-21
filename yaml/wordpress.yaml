@@ -1,0 +1,76 @@
+kind: Deployment
+#apiVersion: extensions/v1beta1
+apiVersion: apps/v1
+metadata:
+  labels:
+    app: wordpress-app
+  name: wordpress-app-deployment
+  namespace: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress-app
+  template:
+    metadata:
+      labels:
+        app: wordpress-app
+    spec:
+      containers:
+      - name: wordpress-app-nginx
+        image: hub.zhangguiyuan.com/baseimage/wordpress-nginx:v1.14.2 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+        - containerPort: 443
+          protocol: TCP
+          name: https
+        volumeMounts:
+        - name: wordpress
+          mountPath: /home/nginx/wordpress
+          readOnly: false
+      - name: wordpress-app-php
+        image: hub.zhangguiyuan.com/baseimage/wordpress-php-5.6:v1
+        #image: harbor.wordpress.net/wordpress/php:5.6.40-fpm 
+        #imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9000
+          protocol: TCP
+          name: http
+        volumeMounts:
+        - name: wordpress
+          mountPath: /home/nginx/wordpress
+          readOnly: false
+      volumes:
+      - name: wordpress
+        nfs:
+          server: 10.0.0.133
+          path: /data/k8sdata/wordpress/wordpress 
+
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: wordpress-app
+  name: wordpress-app-spec
+  namespace: mysql
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 80
+    nodePort: 30031
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 443
+    nodePort: 30033
+  selector:
+    app: wordpress-app
